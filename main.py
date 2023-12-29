@@ -1,16 +1,17 @@
-# This is a sample Python script.
+import matplotlib.pyplot as plt
+import networkx as nx
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+num_nodes = 20
+num_edge = 30
 
+G = nx.dense_gnm_random_graph(num_nodes, num_edge, seed=45654516)
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+pos = nx.kamada_kawai_layout(G)
 
+nx.draw(G, pos, node_color='skyblue', edge_color='gray', node_size=100)
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
+plt.xticks([])
+plt.yticks([])
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+plt.show()
+
