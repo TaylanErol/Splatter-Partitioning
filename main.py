@@ -5,6 +5,28 @@ import matplotlib.pyplot as plt
 import random
 
 
+def calculate_modularity(graph, partitions):
+    """
+    Calculate the modularity of the graph for given partitions.
+
+    :param graph: The graph.
+    :type graph: networkx.Graph
+
+    :param partitions: The partitioning of the graph.
+    :type partitions: dict
+
+    :return: The modularity value.
+    :rtype: float
+    """
+    communities = {}
+    for node, partition in partitions.items():
+        communities.setdefault(partition, []).append(node)
+
+    # Convert to list of lists for modularity calculation
+    community_list = list(communities.values())
+    return nx.algorithms.community.modularity(graph, community_list)
+
+
 def splatter_partitioning(graph, k):
     """
     Perform splatter partitioning on a graph using a breadth-first approach.
@@ -45,38 +67,66 @@ def splatter_partitioning(graph, k):
                     unpartitioned_nodes.remove(neighbor)
                     print(f"  Node {neighbor} assigned to partition {partition} from node {current_node}")
 
-    # Refine Partitions
-    print("Starting refinement of partitions")
-    for refinement_iteration in range(10):  # Number of refinement iterations
-        for node in graph.nodes():
-            partition_members = [n for n in graph.nodes() if partitions[n] == partitions[node]]
-            if len(partition_members) == 1:
-                continue
+    for node in graph.nodes():
+        if partitions[node] is None:
+            partitions[node] = random.randint(0, k - 1)
+            print(f"Node {node} was unassigned, randomly assigned to partition {partitions[node]}")
 
-            current_partition = partitions[node]
-            neighbor_partitions = [partitions[n] for n in graph.neighbors(node) if partitions[n] != current_partition]
+            # Refinement step based on modularity
+            print("Starting refinement based on modularity")
+            previous_modularity = calculate_modularity(graph, partitions)
+            max_iterations = 10  # Limit the number of refinement iterations
 
-            initial_edge_count = sum(1 for neighbor in graph.neighbors(node) if partitions[neighbor] != current_partition)
+            for iteration in range(max_iterations):
+                improved = False
+                new_partitions = {}
 
-            if neighbor_partitions:
-                new_partition = random.choice(neighbor_partitions)
-                partitions[node] = new_partition
-                new_edge_count = sum(1 for neighbor in graph.neighbors(node) if partitions[neighbor] != new_partition)
+                for node in graph.nodes():
+                    original_partition = partitions[node]
+                    best_partition = original_partition
+                    best_modularity = previous_modularity
 
-                if new_edge_count < initial_edge_count:
-                    print(f"  Refinement {refinement_iteration + 1}, Node {node}: Changed from partition {current_partition} to {new_partition}. Edge count reduced.")
+                    # Check only a subset of neighbors to prevent over-concentration
+                    neighbors_to_check = random.sample(list(graph.neighbors(node)), min(3, len(graph.neighbors(node))))
+                    for neighbor in neighbors_to_check:
+                        temp_partition = partitions[neighbor]
+                        if temp_partition is None or temp_partition == original_partition:
+                            continue
+
+                        partitions[node] = temp_partition  # Temporarily change partition
+                        new_modularity = calculate_modularity(graph, partitions)
+
+                        # Apply a stricter criterion for changing partitions
+                        if new_modularity > best_modularity + 0.01:  # Threshold for significant improvement
+                            best_modularity = new_modularity
+                            best_partition = temp_partition
+                            improved = True
+
+                        partitions[node] = original_partition  # Revert to original partition
+
+                    if best_partition != original_partition:
+                        new_partitions[node] = best_partition
+
+                # Apply all partition changes in batch
+                for node, partition in new_partitions.items():
+                    partitions[node] = partition
+                    print(
+                        f"Iteration {iteration + 1}: Node {node} moved to partition {partition} for better modularity")
+
+                if improved:
+                    previous_modularity = best_modularity
                 else:
-                    partitions[node] = current_partition
+                    break  # Stop if no improvements
 
-    return partitions
+        return partitions
 
 # Rest of your code for initializing the graph and visualization remains the same
 
 
 # Initialize the graph and parameters
 G = nx.karate_club_graph()
-pos = nx.kamada_kawai_layout(G)
-k = 5  # Number of initial partitions
+
+k = 3  # Number of initial partitions
 
 # Apply the splatter partitioning algorithm
 partitions = splatter_partitioning(G, k)
@@ -86,6 +136,7 @@ partition_colors = ['red', 'blue', 'green', 'yellow', 'purple']  # Add more colo
 color_map = [partition_colors[partitions[node] % len(partition_colors)] for node in G]
 
 # Draw the graph
+pos = nx.spring_layout(G)
 nx.draw(G, pos, node_color=color_map, edge_color='gray', with_labels=True, node_size=100)
 plt.xticks([])
 plt.yticks([])
