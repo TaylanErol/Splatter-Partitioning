@@ -30,3 +30,6 @@ plt.xticks([])
 plt.yticks([])
 plt.show()
 ```
+
+## Karate Club Graph Partitioning Results
+![alt text](https://raw.githubusercontent.com/TaylanErol/Splatter-Partitioning/master/myplot.png?token=GHSAT0AAAAAACKYRFWZKCTRRLXDYFUBXEWYZMP4B3Q)
